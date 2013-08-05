@@ -45,13 +45,22 @@ function getDummyNote (text) {
   };
 };
 
+
+
 injector.invoke( function ($db) {
-    asyncTest("create the tables", function() {
-        $db.createTables().then(function (done) {
-            equal(done, done);
-            start();
-        })
-    })
+    var oldAsyncTest = asyncTest;
+    asyncTest = function(string, test){
+        oldAsyncTest(string, function () {
+            $db.clear().then(function () {
+                return $db.createTables();
+            }, function (error) {
+                return $db.createTables();
+            }).then(function () {
+                test();
+            });
+        });
+    };
+    
     asyncTest("gets no notes when it's empty", function(){
         $db.getNotes().then(function(notes){
             equal(notes.length, 0);
@@ -68,25 +77,21 @@ injector.invoke( function ($db) {
         });
     });
 
-
-
-    // asyncTest('can create multiple notes at once', function() {
-    //       var i, noteCount, notes, _i;
-    //       noteCount = 5;
-    //       notes = [];
-    //       for (i = _i = 0; 0 <= noteCount ? _i < noteCount : _i > noteCount; i = 0 <= noteCount ? ++_i : --_i) {
-    //         notes.push(getDummyNote());
-    //       }
-    //       $db.create(notes).then(function () {
-    //             return $db.getNotes();
-    //       },  function (error) {
-    //             alert(error);
-    //         }).then(function(notesFromDb) {
-    //             equal(notesFromDb.length, noteCount);
-    //             start();
-    //         });
+    asyncTest('can create multiple notes at once', function() {
+          var i, noteCount, notes, _i;
+          noteCount = 5;
+          notes = [];
+          for (i = _i = 0; 0 <= noteCount ? _i < noteCount : _i > noteCount; i = 0 <= noteCount ? ++_i : --_i) {
+            notes.push(getDummyNote());
+          }
+          $db.create(notes).then(function () {
+                return $db.getNotes();
+          }).then(function (notesFromDb) {
+                equal(notesFromDb.length, noteCount);
+                start();
+            });
       
-    //     });
+        });
 
 //     asyncTest('can create a dirty note marked with status:create', function() {
 //       $db.create(getDummyNote(), {

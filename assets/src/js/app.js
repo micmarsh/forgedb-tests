@@ -588,9 +588,9 @@
         deferred = Q.defer();
         if (window.forge) {
           forge.internal.call(method, args, function(results) {
-            return deferred.resolve(results, function(err) {
-              return deferred.reject(err);
-            });
+            return deferred.resolve(results);
+          }, function(err) {
+            return deferred.reject(err);
           });
         } else {
           noForge(deferred, method, args);
