@@ -127,39 +127,45 @@ injector.invoke( function ($db) {
       });
     });
 
-    // asyncTest('can update a dirty note', function() {
-    //   var id, newText, oldText, originalNote;
-    //   originalNote = getDummyNote();
-    //   id = originalNote._id;
-    //   oldText = originalNote.text;
-    //   $db.create(originalNote);
-    //   newText = 'ohhhh so dirty';
-    //   $db.update({
-    //     _id: id,
-    //     text: newText
-    //   }, {
-    //     dirty: true
-    //   });
-    //   return $db.getNotes().then(function(notes) {
-    //     expect(notes.length).toEqual(1);
-    //     expect(notes[0].text).not.toEqual(oldText);
-    //     expect(notes[0].text).toEqual(newText);
-    //     return expect(notes[0].status).toEqual('update');
-    //   });
-    // });
+    asyncTest('can update a dirty note', function() {
+      var id, newText, oldText, originalNote;
+      originalNote = getDummyNote();
+      id = originalNote._id;
+      oldText = originalNote.text;
+      $db.create(originalNote).then(function () {
+          newText = 'ohhhh so dirty';
+          return $db.update({
+            localID: originalNote.localID,
+            text: newText
+          }, {
+            dirty: true
+          });
+      }).then(function () {
+        return $db.getNotes();
+      }).then(function (notes) {
+        equal(notes.length, 1);
+        notEqual(notes[0].text, oldText);
+        equal(notes[0].text, newText);
+        equal(notes[0].status, 'update');
+        start();
+      });
+    });
 
-//     asyncTest('can delete a note', function() {
-//       var id, note;
-//       note = getDummyNote();
-//       id = note._id;
-//       $db.create(note);
-//       $db["delete"]({
-//         _id: id
-//       });
-//       return $db.getNotes().then(function(notes) {
-//         return expect(notes.length).toEqual(0);
-//       });
-//     });
+    asyncTest('can delete a note', function() {
+      var id, note;
+      note = getDummyNote();
+      id = note._id;
+      $db.create(note).then(function () {
+          return $db["delete"]({
+            localID: note.localID
+          });   
+      }).then(function () {
+         return $db.getNotes();
+      }).then(function(notes) {
+         equal(notes.length, 0);
+         start();
+      });
+    });
 
 //     /*
 //         FIGURE OUT TESTS FOR .SYNC()
