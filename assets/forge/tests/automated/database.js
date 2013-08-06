@@ -172,38 +172,38 @@ injector.invoke( function ($db) {
 //     */
 
 
-//     asyncTest('can get tags', function() {
-//       var expectedTags, note1, note2;
-//       note1 = getDummyNote('what #up #dude');
-//       note2 = getDummyNote('omg #up #yours');
-//       expectedTags = ['#up', '#dude', '#yours'];
-//       $db.create([note1, note2]);
-//       return $db.getTags().then(function(tags) {
-//         var tag, _i, _len, _results;
-//         _results = [];
-//         for (_i = 0, _len = tags.length; _i < _len; _i++) {
-//           tag = tags[_i];
-//           _results.push(expect(expectedTags.indexOf(tag.name)).not.toEqual(-1));
-//         }
-//         return _results;
-//       });
-//     });
+    asyncTest('can get tags', function() {
+      var expectedTags, note1, note2;
+      note1 = getDummyNote('what #up #dude');
+      note2 = getDummyNote('omg #up #yours');
+      expectedTags = ['#up', '#dude', '#yours'];
+      $db.create([note1, note2]).then(function () {
+        return $db.getTags();
+      }).then(function (tags) {
+        var tag, _i, _len, _results;
+        for (_i = 0, _len = tags.length; _i < _len; _i++) {
+          tag = tags[_i];
+          notEqual(expectedTags.indexOf(tag.name), -1);
+        }
+        start();
+      });
+    });
 
-//     asyncTest('can get contacts', function() {
-//       var expectedContacts, note1, note2;
-//       note1 = getDummyNote('what up @matt');
-//       note2 = getDummyNote('@alex omg dude - via @alexh');
-//       expectedContacts = ['@matt', '@alex', '@alexh'];
-//       $db.create([note1, note2]);
-//       return $db.getContacts().then(function(contacts) {
-//         var contact, _i, _len, _results;
-//         _results = [];
-//         for (_i = 0, _len = contacts.length; _i < _len; _i++) {
-//           contact = contacts[_i];
-//           _results.push(expect(expectedContacts.indexOf(contact.name)).not.toEqual(-1));
-//         }
-//         return _results;
-//       });
-// });
+    asyncTest('can get contacts', function() {
+      var expectedContacts, note1, note2;
+      note1 = getDummyNote('what up @matt');
+      note2 = getDummyNote('@alex omg dude - via @alexh');
+      expectedContacts = ['@matt', '@alex', '@alexh'];
+      $db.create([note1, note2]).then(function () {
+        return $db.getContacts();
+      }).then(function (contacts) {
+        var contact, _i, _len, _results;
+        for (_i = 0, _len = contacts.length; _i < _len; _i++) {
+          contact = contacts[_i];
+          notEqual(expectedContacts.indexOf(contact.name), -1);
+        }
+        start();
+      });
+});
 
 });
