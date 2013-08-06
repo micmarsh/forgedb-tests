@@ -219,11 +219,9 @@ injector.invoke( function ($db) {
         //     });
         // };
 
-      oldAsyncTest = asyncTest;
+      var newOldAsyncTest = asyncTest;
       asyncTest = function (string, test) {
-                    alert('adding shit');
-
-        oldAsyncTest(string, function () {
+        newOldAsyncTest(string, function () {
             var dirtyNoteTexts, dumbNotes, noteTexts, text, _i, _j, _len, _len1, count;
             noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
 
@@ -273,39 +271,38 @@ injector.invoke( function ($db) {
         });
       });
 
-    // asyncTest('can filter by @tags', function() {
-    //   var someTag;
-    //   someTag = '@lubibul';
-    //   return $db.getNotes({
-    //     attags: [someTag]().then(function(notesFromDb) {
-    //       var note, _i, _len, _results;
-    //       expect(notesFromDb.length).toEqual(2);
-    //       _results = [];
-    //       for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
-    //         note = notesFromDb[_i];
-    //         _results.push(expect(note.text.indexOf(someTag)).not.toEqual(-1));
-    //       }
-    //       return _results;
-    //     })
-    //   });
-    // });
+    asyncTest('can filter by @tags', function() {
+      var someTag;
+      someTag = '@lubibul';
+      return $db.getNotes({
+        attags: [someTag]
+      }).then(function (notesFromDb) {
+          var note, _i, _len, _results;
+          equal(notesFromDb.length, 2);
+          for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
+            note = notesFromDb[_i];
+            notEqual(note.text.indexOf(someTag), -1);
+          }
+        });
+    });
 
-    // asyncTest('can search for text', function() {
-    //   var search;
-    //   search = 'book';
-    //   return $db.getNotes({
-    //     search: search().then(function(notesFromDb) {
-    //       var note, _i, _len, _results;
-    //       expect(notesFromDb.length).toEqual(2);
-    //       _results = [];
-    //       for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
-    //         note = notesFromDb[_i];
-    //         _results.push(expect(note.text.indexOf(search)).not.toEqual(-1));
-    //       }
-    //       return _results;
-    //     })
-    //   });
-    // });
+    asyncTest('can search for text', function() {
+      var search;
+      search = 'book';
+      return $db.getNotes({
+        search: search
+      }).then(function (notesFromDb) {
+          var note, _i, _len, _results;
+          expect(notesFromDb.length).toEqual(2);
+          _results = [];
+          for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
+            note = notesFromDb[_i];
+            _results.push(expect(note.text.indexOf(search)).not.toEqual(-1));
+          }
+          return _results;
+        });
+    });
+  
 
     // asyncTest('can set a limit', function() {
     //   var arbitraryLimit;
