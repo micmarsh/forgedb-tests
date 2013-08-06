@@ -1988,7 +1988,25 @@
         };
 
         QueryBuilder.prototype._baseUpdateQuery = function(model, cleaning) {
-          return ("update Notes set " + this.TEXT + "=?, " + this.ID + "='" + (this._getID(model)) + "',") + ("" + this.TIMESTAMP + "='" + (this._get(model, this.TIMESTAMP)) + "',") + ("" + this.STATUS + "='" + (this._get(model, this.STATUS)) + "',") + ("" + this.STASH + "='" + (JSON.stringify(this._get(model, this.STASH))) + "',") + ("" + this.STASH_BOOL + "='" + (this._get(model, this.STASH_BOOL)) + "' where ") + (cleaning ? " " + this.LOCAL_ID + "='" + (this._get(model, this.LOCAL_ID)) + "'" : this._determineProperIdQuery(model));
+          var key, pairStrings, value;
+          pairStrings = (function() {
+            var _results;
+            _results = [];
+            for (key in model) {
+              value = model[key];
+              if (key === this.TEXT) {
+                _results.push("" + this.TEXT + "=?, ");
+              } else if (key === this.STASH) {
+                _results.push("" + key + "='" + (JSON.stringify(value)) + "', ");
+              } else if (key !== this.LOCAL_ID) {
+                _results.push("" + key + "='" + value + "', ");
+              } else {
+                _results.push(void 0);
+              }
+            }
+            return _results;
+          }).call(this);
+          return "update Notes set " + pairStrings.join(' ').slice(0, -2) + " where " + (cleaning ? " " + this.LOCAL_ID + "='" + (this._get(model, this.LOCAL_ID)) + "'" : this._determineProperIdQuery(model));
         };
 
         QueryBuilder.prototype._determineProperIdQuery = function(model) {
@@ -5982,9 +6000,15 @@
           "localID": 606
         }
       ].map(function(note) {
+        var thing, _i, _len, _ref;
         note.stash = randomStashStuff();
         note.stash_bool = pickRandom([true, false]);
         note._id = note.id;
+        _ref = ['unsubscribed', 'astrid_id', 'id', '_isTransferred', 'fetchnotes_id'];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          thing = _ref[_i];
+          delete note[thing];
+        }
         return note;
       });
       return {

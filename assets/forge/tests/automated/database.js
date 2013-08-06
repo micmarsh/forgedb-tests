@@ -45,8 +45,6 @@ function getDummyNote (text) {
   };
 };
 
-
-
 injector.invoke( function ($db) {
     var oldAsyncTest = asyncTest;
     asyncTest = function(string, test){
@@ -60,7 +58,7 @@ injector.invoke( function ($db) {
             });
         });
     };
-    
+
     asyncTest("gets no notes when it's empty", function(){
         $db.getNotes().then(function(notes){
             equal(notes.length, 0);
@@ -93,54 +91,62 @@ injector.invoke( function ($db) {
       
         });
 
-//     asyncTest('can create a dirty note marked with status:create', function() {
-//       $db.create(getDummyNote(), {
-//         dirty: true
-//       });
-//       return $db.getNotes().then(function(notes) {
-//         expect(notes.length).toEqual(1);
-//         return expect(notes[0].status).toBe('create');
-//       });
-//     });
+    asyncTest('can create a dirty note marked with status:create', function() {
+      $db.create(getDummyNote(), {
+        dirty: true
+      }).then(function () {
+        return $db.getNotes();
+      }).then(function(notes) {
+        equal(notes.length, 1);
+        equal(notes[0].status, 'create');
+        start();
+      });
+    });
 
-//     asyncTest('can update a note', function() {
-//       var id, newText, oldText, originalNote;
-//       originalNote = getDummyNote();
-//       id = originalNote._id;
-//       oldText = originalNote.text;
-//       $db.create(originalNote);
-//       newText = 'no longer poop';
-//       $db.update({
-//         _id: id,
-//         text: newText
-//       });
-//       return $db.getNotes().then(function(notes) {
-//         expect(notes.length).toEqual(1);
-//         expect(notes[0].text).not.toEqual(oldText);
-//         return expect(notes[0].text).toEqual(newText);
-//       });
-//     });
+    asyncTest('can update a note', function() {
+      var id, newText, oldText, originalNote;
+      originalNote = getDummyNote();
+      id = originalNote._id;
+      oldText = originalNote.text;
+      $db.create(originalNote).then(function (ids) {
+            newText = 'no longer poop';
+            return $db.update({
+                localID: originalNote.localID,
+                text: newText
+              });
+      }).then(function () {
+            return $db.getNotes();
+      }).then(function(notes) {
+            var note = notes[0];
+            equal(notes.length, 1);
+            notEqual(note.text, oldText);
+            equal(note.text, newText);
+            equal(note._id, originalNote._id);
+            equal(note.timestamp, originalNote.timestamp);
+            start();
+      });
+    });
 
-//     asyncTest('can update a dirty note', function() {
-//       var id, newText, oldText, originalNote;
-//       originalNote = getDummyNote();
-//       id = originalNote._id;
-//       oldText = originalNote.text;
-//       $db.create(originalNote);
-//       newText = 'ohhhh so dirty';
-//       $db.update({
-//         _id: id,
-//         text: newText
-//       }, {
-//         dirty: true
-//       });
-//       return $db.getNotes().then(function(notes) {
-//         expect(notes.length).toEqual(1);
-//         expect(notes[0].text).not.toEqual(oldText);
-//         expect(notes[0].text).toEqual(newText);
-//         return expect(notes[0].status).toEqual('update');
-//       });
-//     });
+    // asyncTest('can update a dirty note', function() {
+    //   var id, newText, oldText, originalNote;
+    //   originalNote = getDummyNote();
+    //   id = originalNote._id;
+    //   oldText = originalNote.text;
+    //   $db.create(originalNote);
+    //   newText = 'ohhhh so dirty';
+    //   $db.update({
+    //     _id: id,
+    //     text: newText
+    //   }, {
+    //     dirty: true
+    //   });
+    //   return $db.getNotes().then(function(notes) {
+    //     expect(notes.length).toEqual(1);
+    //     expect(notes[0].text).not.toEqual(oldText);
+    //     expect(notes[0].text).toEqual(newText);
+    //     return expect(notes[0].status).toEqual('update');
+    //   });
+    // });
 
 //     asyncTest('can delete a note', function() {
 //       var id, note;
