@@ -204,6 +204,127 @@ injector.invoke( function ($db) {
         }
         start();
       });
-});
+
+      oldAsyncTest = asyncTest;
+      asyncTest = function (string, test) {
+        oldAsyncTest(string, function () {
+            var dirtyNoteTexts, dumbNotes, noteTexts, text, _i, _j, _len, _len1, count;
+            noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
+
+            dumbNotes = [];
+
+            for (_i = 0, _len = noteTexts.length; _i < _len; _i++) {
+              text = noteTexts[_i];
+              dumbNotes.push(getDummyNote(text));
+            }
+
+            dumbNotes[1].stashed = true;
+
+            dumbNotes[2].stashed = true;
+
+            $db.create(dumbNotes).then(function () {
+                dirtyNoteTexts = ['oh sooooo dirty', '#butts'];
+                count = 0;
+                for (_j = 0, _len1 = dirtyNoteTexts.length; _j < _len1; _j++) {
+                  text = dirtyNoteTexts[_j];
+                  $db.create(getDummyNote(text), {
+                    dirty: true
+                  }).then(function () {
+                    count++;
+                    if(count === len1){
+                        test();               
+                    }
+                  });
+                }
+            } );
+            });
+          }
+        });
+
+    asyncTest('can filter by #tags', function() {
+      var someTag;
+      someTag = '#todo';
+      $db.getNotes({
+        hashtags: [someTag]
+        }).then(function (notesFromDb) {
+          var note, _i, _len, _results;
+          equal(notesFromDb.length, 2);
+          _results = [];
+          for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
+            note = notesFromDb[_i];
+            notEqual(note.text.indexOf(someTag), -1);
+          };
+          start();
+        });
+      });
+
+    // asyncTest('can filter by @tags', function() {
+    //   var someTag;
+    //   someTag = '@lubibul';
+    //   return $db.getNotes({
+    //     attags: [someTag]().then(function(notesFromDb) {
+    //       var note, _i, _len, _results;
+    //       expect(notesFromDb.length).toEqual(2);
+    //       _results = [];
+    //       for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
+    //         note = notesFromDb[_i];
+    //         _results.push(expect(note.text.indexOf(someTag)).not.toEqual(-1));
+    //       }
+    //       return _results;
+    //     })
+    //   });
+    // });
+
+    // asyncTest('can search for text', function() {
+    //   var search;
+    //   search = 'book';
+    //   return $db.getNotes({
+    //     search: search().then(function(notesFromDb) {
+    //       var note, _i, _len, _results;
+    //       expect(notesFromDb.length).toEqual(2);
+    //       _results = [];
+    //       for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
+    //         note = notesFromDb[_i];
+    //         _results.push(expect(note.text.indexOf(search)).not.toEqual(-1));
+    //       }
+    //       return _results;
+    //     })
+    //   });
+    // });
+
+    // asyncTest('can set a limit', function() {
+    //   var arbitraryLimit;
+    //   arbitraryLimit = 3;
+    //   return $db.getNotes({
+    //     limit: arbitraryLimit().then(function(notesFromDb) {
+    //       return expect(notesFromDb.length).toEqual(arbitraryLimit);
+    //     })
+    //   });
+    // });
+
+    // asyncTest('can get dirty notes', function() {
+    //   return $db.getNotes({
+    //     dirty: true
+    //   }).then(function(notesFromDb) {
+    //     return expect(notesFromDb.length).toEqual(2);
+    //   });
+    // });
+
+    // asyncTest('can get stashed notes', function() {
+    //   return $db.getNotes({
+    //     stashed: true
+    //   }).then(function(notesFromDb) {
+    //     return expect(notesFromDb.length).toEqual(2);
+    //   });
+    // });
+
+    // asyncTest('can get not stashed notes', function() {
+    //   return $db.getNotes({
+    //     stashed: false
+    //   }).then(function(notesFromDb) {
+    //     return expect(notesFromDb.length).toEqual(6);
+    //   });
+    // });
+
 
 });
