@@ -48,6 +48,8 @@ function getDummyNote (text) {
 injector.invoke( function ($db) {
     var oldAsyncTest = asyncTest;
     asyncTest = function(string, test){
+                        alert('clearing data shit out');
+
         oldAsyncTest(string, function () {
             $db.clear().then(function () {
                 return $db.createTables();
@@ -204,9 +206,25 @@ injector.invoke( function ($db) {
         }
         start();
       });
+    });
+
+
+        // asyncTest = function(string, test){
+        //     oldAsyncTest(string, function () {
+        //         $db.clear().then(function () {
+        //             return $db.createTables();
+        //         }, function (error) {
+        //             return $db.createTables();
+        //         }).then(function () {
+        //             test();
+        //         });
+        //     });
+        // };
 
       oldAsyncTest = asyncTest;
       asyncTest = function (string, test) {
+                    alert('adding shit');
+
         oldAsyncTest(string, function () {
             var dirtyNoteTexts, dumbNotes, noteTexts, text, _i, _j, _len, _len1, count;
             noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
@@ -239,7 +257,6 @@ injector.invoke( function ($db) {
             } );
             });
           }
-        });
 
     asyncTest('can filter by #tags', function() {
       var someTag;
