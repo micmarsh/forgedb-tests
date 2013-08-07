@@ -1416,12 +1416,12 @@
           }
           if (!this._rerouteUnsyncedToUpdate(model, options)) {
             return this._makeAndCallQuery(model, options, angular.bind(this.queryBuilder, this.queryBuilder.addNote), 'create').then(function(ids) {
-              var i, models, _i, _len;
+              var i, models, note, _i, _len;
               if (angular.isArray(model)) {
                 models = model;
                 for (i = _i = 0, _len = models.length; _i < _len; i = ++_i) {
-                  model = models[i];
-                  model[_this.LOCAL_ID] = ids[i];
+                  note = models[i];
+                  note[_this.LOCAL_ID] = ids[i];
                 }
               } else {
                 model[_this.LOCAL_ID] = ids[0];
