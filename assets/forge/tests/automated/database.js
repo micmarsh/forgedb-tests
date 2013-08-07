@@ -219,6 +219,11 @@ injector.invoke( function ($db) {
                 var dumbNotes, noteTexts, _i, _len;
                 noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
 
+                function sendToStash (note) {
+                  note.stashed = {};
+                  return note.stashed[fakeUserId] = true;
+                };
+
                 dumbNotes = [];
 
                 for (_i = 0, _len = noteTexts.length; _i < _len; _i++) {
@@ -226,9 +231,9 @@ injector.invoke( function ($db) {
                   dumbNotes.push(getDummyNote(text));
                 }
 
-                dumbNotes[1].stashed = true;
+                sendToStash(dumbNotes[1]);
 
-                dumbNotes[2].stashed = true;
+                sendToStash(dumbNotes[2]);
 
                 return $db.create(dumbNotes);
             }).then(function () {
