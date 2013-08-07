@@ -48,7 +48,7 @@
   });
 
   angular.module('$app').controller('NotesCtrl', function($scope, $notes, $user, $navigate, $timeout, forgeUI) {
-    var current, populateNoteList, populateTagLists;
+    var changeState, current, populateNoteList, populateTagLists, spliceNote;
     $scope.snapOpts = {
       disable: 'right',
       maxPosition: 270
@@ -136,17 +136,17 @@
       success: null,
       error: null
     });
-    $scope.viewFeed = function() {
-      $scope.stash = false;
-      $scope.state = "feed";
+    changeState = function(newState) {
+      $scope.stash = newState === 'stash';
+      $scope.state = newState;
       populateNoteList();
       return $scope.snapper.close();
     };
+    $scope.viewFeed = function() {
+      return changeState('feed');
+    };
     $scope.viewStash = function() {
-      $scope.stash = true;
-      $scope.state = "stash";
-      populateNoteList();
-      return $scope.snapper.close();
+      return changeState('stash');
     };
     $scope.signOut = function() {
       return $user.signOut().then(function() {
@@ -170,34 +170,20 @@
     $scope.startSearching = function() {
       return $scope.searching = true;
     };
+    spliceNote = function(index) {
+      return $scope.notes.splice(index, 1);
+    };
     $scope.stashNote = function(note, index) {
-      var stashedNote;
-      $scope.notes.splice(index, 1);
-      if (!note.stashed) {
-        stashedNote = angular.extend(note, {
-          stashed: true
-        });
-        return $notes.save(stashedNote);
-      }
+      $notes.stash(note);
+      return spliceNote(index);
     };
     $scope.deleteNote = function(note, index) {
-      $scope.notes.splice(index, 1);
-      if (note.stashed) {
-        return $notes["delete"](note).then(function(note) {
-          return console.log('note deleted');
-        });
-      }
+      $notes["delete"](note);
+      return spliceNote(index);
     };
     $scope.returnNoteToFeed = function(note, index) {
-      var promise;
-      $scope.notes.splice(index, 1);
-      if (note.stashed) {
-        return promise = $notesServer.save({
-          _id: note._id,
-          stashed: false,
-          text: note.text
-        });
-      }
+      $notes.unstash(note);
+      return spliceNote(index);
     };
     $scope.doneSearching = function() {
       return $scope.searching = false;
@@ -258,8 +244,10 @@
     $scope.back = function() {
       return $navigate.back();
     };
-    return $notes.getById($routeParams.id).then(function(note) {
-      return $scope.note = note;
+    return $scope.$on('$pageTransitionSuccess', function() {
+      return $notes.getById($routeParams.id).then(function(note) {
+        return $scope.note = note;
+      });
     });
   });
 
@@ -708,8 +696,8 @@
     return notes;
   });
 
-  angular.module('$app.services').service('$notes', function($notesServer, $db, $utils, $rootScope) {
-    var notes, sendDirtyNotes, serverMethodMap, stripNoteForServer;
+  angular.module('$app.services').service('$notes', function($notesServer, $db, $utils, $rootScope, $user) {
+    var changeStashStatus, notes, sendDirtyNotes, serverMethodMap, stripNoteForServer;
     notes = {};
     notes.clear = function() {
       return $db.clear();
@@ -751,17 +739,31 @@
       });
     };
     notes["delete"] = function(note) {
+      var noteToClean;
       if (!note._id) {
         $db["delete"](note);
         return;
       }
+      noteToClean = null;
       return $db["delete"](note, {
         dirty: true
+      }).then(function(dirtyNote) {
+        noteToClean = dirtyNote;
+        return $notesServer["delete"](dirtyNote);
       }).then(function() {
-        return $notesServer["delete"](note);
-      }).then(function() {
-        return $db.clean(note);
+        return $db.clean(noteToClean);
       });
+    };
+    changeStashStatus = function(note, newStatus) {
+      note.stashed || (note.stashed = {});
+      note.stashed[$user.getId()] = newStatus;
+      return notes.save(note);
+    };
+    notes.stash = function(note) {
+      return changeStashStatus(note, true);
+    };
+    notes.unstash = function(note) {
+      return changeStashStatus(note, false);
     };
     serverMethodMap = {
       create: 'save',
@@ -824,7 +826,7 @@
   });
 
   angular.module('$app.services').service('$user', function($kinvey) {
-    var User, activeUser, formatData, user;
+    var User, activeUser, formatData, user, _ref;
     user = {};
     User = $kinvey.User;
     formatData = function(user) {
@@ -845,11 +847,20 @@
       }
     };
     activeUser = null;
+    if ((_ref = $kinvey.fnUserPromise) != null) {
+      _ref.then(function(u) {
+        return activeUser = u;
+      });
+    }
     user.getCurrent = function() {
       if (activeUser != null) {
         return activeUser;
       }
       return $kinvey.fnUserPromise;
+    };
+    user.getId = function() {
+      user = typeof $kinvey.getActiveUser === "function" ? $kinvey.getActiveUser() : void 0;
+      return (user != null ? user._id : void 0) || '';
     };
     return user;
   });
@@ -938,7 +949,7 @@
     }
   ]);
 
-  angular.module('$app.services').service('$fakedb', function($window, Q, $timeout) {
+  angular.module('$app.services').service('$fakedb', function($window, Q, $timeout, $user) {
     var FakeDatabase, Set;
     FakeDatabase = (function() {
       FakeDatabase.prototype.data = {};
@@ -948,6 +959,8 @@
       FakeDatabase.prototype.last = 'fetch-last-update';
 
       FakeDatabase.prototype.store = $window.localStorage;
+
+      FakeDatabase.prototype.currentUserId = null;
 
       FakeDatabase.prototype.TEXT = "text";
 
@@ -960,7 +973,21 @@
       FakeDatabase.prototype.STATUS = "status";
 
       function FakeDatabase() {
+        var _this = this;
         this._load();
+        (function() {
+          var current;
+          current = $user.getCurrent();
+          if ((current != null ? current.then : void 0) != null) {
+            return current.then(function(active) {
+              return _this.currentUserId = $user.getId();
+            }, function(active) {
+              return _this.currentUserId = $user.getId();
+            });
+          } else {
+            return _this.currentUserId = $user.getId();
+          }
+        })();
       }
 
       FakeDatabase.prototype._load = function() {
@@ -1059,7 +1086,7 @@
       };
 
       FakeDatabase.prototype.getNotes = function(options) {
-        var filters, limit, results, skip,
+        var filters, limit, poopSearch, query, results, skip, _i, _len, _ref,
           _this = this;
         options = options ? angular.copy(options) : {};
         filters = [];
@@ -1070,9 +1097,20 @@
           filters.push(this._notesWithEntities('attags', options));
         }
         if (options.search && options.search.length) {
-          filters.push(_.filter(this.data, function(n) {
-            return n[_this.TEXT].indexOf(options.search) !== -1;
-          }));
+          poopSearch = function(filtersArray, query) {
+            return filters.push(_.filter(_this.data, function(n) {
+              return n[_this.TEXT].indexOf(query) !== -1;
+            }));
+          };
+          if (angular.isArray(options.search)) {
+            _ref = options.search;
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              query = _ref[_i];
+              poopSearch(filters, query);
+            }
+          } else {
+            poopSearch(filters, options.search);
+          }
         }
         if (options.dirty) {
           filters.push(_.filter(this.data, function(n) {
@@ -1081,10 +1119,10 @@
         }
         if (options.stashed != null) {
           filters.push(_.filter(this.data, function(n) {
-            if (options.stashed === true) {
-              return n.stashed === true;
+            if ((n.stashed != null) && (n.stashed[_this.currentUserId] != null)) {
+              return n.stashed[_this.currentUserId] === options.stashed;
             } else {
-              return n.stashed !== true;
+              return !options.stashed;
             }
           }));
         }
@@ -1136,7 +1174,7 @@
         } else {
           delete this.data[id];
         }
-        return this._finish(model, options);
+        return this._finish(obj, options);
       };
 
       FakeDatabase.prototype.clean = function(model, options) {
@@ -1148,7 +1186,7 @@
           throw "cleaning note without id OR localID. COME ON";
         }
         delete this.data[existingId];
-        if (obj.state !== 'deleted') {
+        if (obj[this.STATUS] !== 'delete') {
           obj[this.STATUS] = 'synced';
           this.data[id] = obj;
         }
@@ -1373,7 +1411,7 @@
       SERV_COL: "_id",
       TIME_COL: "timestamp",
       STATUS_COL: "status",
-      STASH_COL: "stash",
+      STASH_COL: "stashed",
       STASH_BOOL_COL: "stash_bool",
       TABLE_NAMES: {
         notes: "Notes",
@@ -1559,6 +1597,10 @@
           }
           args.builder = angular.bind(this.queryBuilder, this.queryBuilder.fetchContacts);
           return this._getEntities(args);
+        };
+
+        NativeInterface.prototype._getCurrentUserId = function() {
+          return this.queryBuilder.currentUserId;
         };
 
         NativeInterface.prototype._getEntities = function(args) {
@@ -1780,11 +1822,11 @@
   ]);
 
   angular.module('$app.services').service('queryBuilder', [
-    'dbLiterals', '$utils', function(dbLiterals, utils) {
+    'dbLiterals', '$utils', '$user', function(dbLiterals, utils, $user) {
       var QueryBuilder;
       QueryBuilder = (function() {
         QueryBuilder.prototype.getCreateTablesQueries = function() {
-          var COLUMN, ENTITY_COL_NAMEs, LOC_ID, SCHEMA, TABLE_NAMES, i, key, schema, value;
+          var COLUMN, ENTITY_COL_NAMES, LOC_ID, SCHEMA, TABLE_NAMES, i, key, schema, value;
           TABLE_NAMES = (function() {
             var _ref, _results;
             _ref = this.database.TABLE_NAMES;
@@ -1795,13 +1837,13 @@
             }
             return _results;
           }).call(this);
-          ENTITY_COL_NAMEs = ["hashtags", "attags", "emails", "urls"];
+          ENTITY_COL_NAMES = ["hashtags", "attags", "emails", "urls"];
           LOC_ID = "" + this.database.LOC_COL + " INTEGER PRIMARY KEY ";
           SCHEMA = [("(" + this.database.TEXT_COL + " TEXT, " + LOC_ID + ", " + this.database.SERV_COL + " TEXT,") + (" " + this.database.TIME_COL + " TEXT, " + this.database.STATUS_COL + " TEXT, ") + ("" + this.database.STASH_COL + " TEXT, " + this.database.STASH_BOOL_COL + " TEXT)")].concat((function() {
             var _i, _len, _results;
             _results = [];
-            for (_i = 0, _len = ENTITY_COL_NAMEs.length; _i < _len; _i++) {
-              COLUMN = ENTITY_COL_NAMEs[_i];
+            for (_i = 0, _len = ENTITY_COL_NAMES.length; _i < _len; _i++) {
+              COLUMN = ENTITY_COL_NAMES[_i];
               _results.push(("(" + this.database.LOC_COL + " INTEGER, " + COLUMN + " TEXT, ") + ("UNIQUE(" + this.database.LOC_COL + ", " + COLUMN + ") ") + "ON CONFLICT REPLACE)");
             }
             return _results;
@@ -1820,8 +1862,11 @@
           })();
         };
 
-        function QueryBuilder(database) {
-          var LOC_COL, SERV_COL, STASH_BOOL_COL, STASH_COL, STATUS_COL, TEXT_COL, TIME_COL;
+        QueryBuilder.prototype.currentUserId = null;
+
+        function QueryBuilder(database, userID) {
+          var LOC_COL, SERV_COL, STASH_BOOL_COL, STASH_COL, STATUS_COL, TEXT_COL, TIME_COL,
+            _this = this;
           this.database = database;
           TEXT_COL = database.TEXT_COL, LOC_COL = database.LOC_COL, SERV_COL = database.SERV_COL, TIME_COL = database.TIME_COL, STATUS_COL = database.STATUS_COL, STASH_COL = database.STASH_COL, STASH_BOOL_COL = database.STASH_BOOL_COL;
           this.TEXT = TEXT_COL;
@@ -1831,6 +1876,19 @@
           this.STATUS = STATUS_COL;
           this.STASH = STASH_COL;
           this.STASH_BOOL = STASH_BOOL_COL;
+          (function() {
+            var current;
+            current = $user.getCurrent();
+            if ((current != null ? current.then : void 0) != null) {
+              return current.then(function(active) {
+                return _this.currentUserId = $user.getId();
+              }, function(active) {
+                return _this.currentUserId = $user.getId();
+              });
+            } else {
+              return _this.currentUserId = $user.getId();
+            }
+          })();
         }
 
         QueryBuilder.prototype.addNote = function(model) {
@@ -2024,6 +2082,8 @@
         QueryBuilder.prototype._get = function(model, field) {
           if (model.get) {
             return model.get(field);
+          } else if (field === this.STASH_BOOL) {
+            return Boolean(model[this.STASH] && model[this.STASH][this.currentUserId]);
           } else {
             return model[field];
           }
@@ -2032,7 +2092,7 @@
         QueryBuilder.prototype._whereClause = function(args) {
           var attags, clauses, dirty, hashtags, search, stashed;
           hashtags = args.hashtags, attags = args.attags, search = args.search, dirty = args.dirty, stashed = args.stashed;
-          clauses = utils.compact([(hashtags.length || attags.length ? " " + this.database.LOC_COL + " in (" + (this._buildFilterQuery(hashtags, attags)) + ")" : ''), (stashed ? "" + this.STASH_BOOL + " == 'true'" : ''), (search ? " " + this.database.TEXT_COL + " like '%" + search + "%' collate nocase " : ''), (dirty === true ? " " + this.database.STATUS_COL + " != 'synced' " : ''), (dirty === false ? " " + this.database.STATUS_COL + " != 'delete' " : '')]);
+          clauses = utils.compact([(hashtags.length || attags.length ? " " + this.database.LOC_COL + " in (" + (this._buildFilterQuery(hashtags, attags)) + ")" : ''), (search ? " " + this.database.TEXT_COL + " like '%" + search + "%' collate nocase " : ''), (dirty === true ? " " + this.database.STATUS_COL + " != 'synced' " : ''), (dirty === false ? " " + this.database.STATUS_COL + " != 'delete' " : ''), (stashed || stashed === false ? "" + this.STASH_BOOL + " == '" + stashed + "'" : '')]);
           if (!!clauses.length) {
             return 'where ' + clauses.join(' and ');
           } else {
