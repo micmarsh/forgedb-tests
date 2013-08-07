@@ -46,18 +46,20 @@ function getDummyNote (text) {
 };
 
 injector.invoke( function ($db) {
-    var oldAsyncTest = asyncTest;
-    asyncTest = function(string, test){
-        oldAsyncTest(string, function () {
-            $db.clear().then(function () {
-                return $db.createTables();
-            }, function (error) {
-                return $db.createTables();
-            }).then(function () {
-                test();
-            });
-        });
-    };
+    module("CUD and stuff", {
+        setup: function () {
+                stop();
+                $db.clear().then(function () {
+                    return $db.createTables();
+                }, function (error) {
+                    return $db.createTables();
+                }).then(function () {
+                    start();
+                });
+        }
+    
+    });
+  
 
     asyncTest("gets no notes when it's empty", function(){
         $db.getNotes().then(function(notes){
@@ -206,22 +208,9 @@ injector.invoke( function ($db) {
       });
     });
 
-
-        // asyncTest = function(string, test){
-        //     oldAsyncTest(string, function () {
-        //         $db.clear().then(function () {
-        //             return $db.createTables();
-        //         }, function (error) {
-        //             return $db.createTables();
-        //         }).then(function () {
-        //             test();
-        //         });
-        //     });
-        // };
-
-      var newOldAsyncTest = asyncTest;
-      asyncTest = function (string, test) {
-        newOldAsyncTest(string, function () {
+    module("getting stuff", {
+        setup: function () {
+            stop();
             var dirtyNoteTexts, dumbNotes, noteTexts, text, _i, _j, _len, _len1, count;
             noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
 
@@ -243,16 +232,19 @@ injector.invoke( function ($db) {
                   text = dirtyNoteTexts[_j];
                   $db.create(getDummyNote(text), {
                     dirty: true
-                  }).then(function () {
-                    count++;
-                    if(count === len1){
-                        test();               
-                    }
+                   }).then(function () {
+                    //TODO this shit still isn't firing for some reason
+                        count++;
+                        alert("count: "+count+" len1: "+len1);
+                        if(count === len1){
+                            start();               
+                        };
                   });
                 }
             } );
-            });
           }
+    });
+  
 
     asyncTest('can filter by #tags', function() {
       var someTag;
@@ -283,6 +275,7 @@ injector.invoke( function ($db) {
             note = notesFromDb[_i];
             notEqual(note.text.indexOf(someTag), -1);
           }
+          start();
         });
     });
 
@@ -294,12 +287,11 @@ injector.invoke( function ($db) {
       }).then(function (notesFromDb) {
           var note, _i, _len, _results;
           expect(notesFromDb.length).toEqual(2);
-          _results = [];
           for (_i = 0, _len = notesFromDb.length; _i < _len; _i++) {
             note = notesFromDb[_i];
-            _results.push(expect(note.text.indexOf(search)).not.toEqual(-1));
+            notEqual(note.text.indexOf(search), -1);
           }
-          return _results;
+          start();
         });
     });
   
