@@ -211,37 +211,48 @@ injector.invoke( function ($db) {
     module("getting stuff", {
         setup: function () {
             stop();
-            var dirtyNoteTexts, dumbNotes, noteTexts, text, _i, _j, _len, _len1, count;
-            noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
+            $db.clear().then(function () {
+                return $db.createTables();
+            }, function (error) {
+                return $db.createTables();
+            }).then(function () {
+                var dumbNotes, noteTexts, _i, _len;
+                noteTexts = ['#todo some stuff', '@alexh #read a book ok - via @brandly', '@brandly here is some #anime - via @lubibul', '@lubibul just stop ok - via @brandly', '#todo #read a super cool book', 'lame note without hashtags'];
 
-            dumbNotes = [];
+                dumbNotes = [];
 
-            for (_i = 0, _len = noteTexts.length; _i < _len; _i++) {
-              text = noteTexts[_i];
-              dumbNotes.push(getDummyNote(text));
-            }
-
-            dumbNotes[1].stashed = true;
-
-            dumbNotes[2].stashed = true;
-
-            $db.create(dumbNotes).then(function () {
-                dirtyNoteTexts = ['oh sooooo dirty', '#butts'];
-                count = 0;
-                for (_j = 0, _len1 = dirtyNoteTexts.length; _j < _len1; _j++) {
-                  text = dirtyNoteTexts[_j];
-                  $db.create(getDummyNote(text), {
-                    dirty: true
-                   }).then(function () {
-                    //TODO this shit still isn't firing for some reason
-                        count++;
-                        alert("count: "+count+" len1: "+len1);
-                        if(count === len1){
-                            start();               
-                        };
-                  });
+                for (_i = 0, _len = noteTexts.length; _i < _len; _i++) {
+                  text = noteTexts[_i];
+                  dumbNotes.push(getDummyNote(text));
                 }
-            } );
+
+                dumbNotes[1].stashed = true;
+
+                dumbNotes[2].stashed = true;
+
+                return $db.create(dumbNotes);
+            }).then(function () {
+                    var dirtyNoteTexts, _len1, _j, count, text;
+                    dirtyNoteTexts = ['oh sooooo dirty', '#butts'];
+                    count = 0;
+                    for (_j = 0, _len1 = dirtyNoteTexts.length; _j < _len1; _j++) {
+                      text = dirtyNoteTexts[_j];
+                      $db.create(getDummyNote(text), {
+                        dirty: true
+                       });//.then(function () {
+                      //   //TODO this shit still isn't firing for some reason
+                      //       count++;
+                      //       alert("count: "+count+" len1: "+len1);
+                      //       if(count === len1){
+                      //           start();               
+                      //       };
+                      // });
+                    }
+                    setTimeout(function(){
+                        start();
+                    },1000);
+                });
+
           }
     });
   
@@ -251,7 +262,7 @@ injector.invoke( function ($db) {
       someTag = '#todo';
       $db.getNotes({
         hashtags: [someTag]
-        }).then(function (notesFromDb) {
+       }).then(function (notesFromDb) {
           var note, _i, _len, _results;
           equal(notesFromDb.length, 2);
           _results = [];
